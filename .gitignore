@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/venv/
+backend/env/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.next/
+*.local
+
+# Database & Uploads
+data/uploads/*
+!data/uploads/.gitkeep
+data/postgres_cluster/
+.postgres_fdr_smarttrack/
+
+# Environment
+.env
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
