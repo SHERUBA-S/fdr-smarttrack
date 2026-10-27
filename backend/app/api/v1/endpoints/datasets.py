@@ -23,17 +23,23 @@ def trigger_dataset_generation(
     db: Session = Depends(get_db)
 ):
     """Generate synthetic institutions, banks, FDR records, and workflows for testing."""
-    result = generate_synthetic_dataset(db=db, mode=data.mode, seed=data.seed)
-    
-    log_audit_event(
-        db=db,
-        action="SYNTHETIC_DATASET_GENERATED",
-        entity_type="SYSTEM",
-        actor=current_user,
-        details=f"Generated {data.mode} dataset ({result.get('fdrs_created')} FDRs)"
-    )
-
-    return result
+    try:
+        result = generate_synthetic_dataset(db=db, mode=data.mode, seed=data.seed)
+        
+        log_audit_event(
+            db=db,
+            action="SYNTHETIC_DATASET_GENERATED",
+            entity_type="SYSTEM",
+            actor=current_user,
+            details=f"Generated {data.mode} dataset ({result.get('fdrs_created')} FDRs)"
+        )
+        return result
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Dataset generation failed: {str(e)}"
+        )
 
 @router.post("/reset-demo-data")
 def reset_demo_data(
@@ -41,23 +47,29 @@ def reset_demo_data(
     db: Session = Depends(get_db)
 ):
     """Reset and remove synthetic demo data safely."""
-    # Delete synthetic FDRs and cascade
-    deleted_fdrs = db.query(FDRRecord).filter(FDRRecord.is_synthetic == True).delete(synchronize_session=False)
-    deleted_insts = db.query(Institution).filter(Institution.is_synthetic == True).delete(synchronize_session=False)
-    deleted_banks = db.query(Bank).filter(Bank.is_synthetic == True).delete(synchronize_session=False)
-    db.commit()
+    try:
+        deleted_fdrs = db.query(FDRRecord).filter(FDRRecord.is_synthetic == True).delete(synchronize_session=False)
+        deleted_insts = db.query(Institution).filter(Institution.is_synthetic == True).delete(synchronize_session=False)
+        deleted_banks = db.query(Bank).filter(Bank.is_synthetic == True).delete(synchronize_session=False)
+        db.commit()
 
-    log_audit_event(
-        db=db,
-        action="DEMO_DATA_RESET",
-        entity_type="SYSTEM",
-        actor=current_user,
-        details=f"Purged synthetic records: {deleted_fdrs} FDRs, {deleted_insts} institutions"
-    )
+        log_audit_event(
+            db=db,
+            action="DEMO_DATA_RESET",
+            entity_type="SYSTEM",
+            actor=current_user,
+            details=f"Purged synthetic records: {deleted_fdrs} FDRs, {deleted_insts} institutions"
+        )
 
-    return {
-        "status": "SUCCESS",
-        "deleted_fdrs": deleted_fdrs,
-        "deleted_institutions": deleted_insts,
-        "deleted_banks": deleted_banks
-    }
+        return {
+            "status": "SUCCESS",
+            "deleted_fdrs": deleted_fdrs,
+            "deleted_institutions": deleted_insts,
+            "deleted_banks": deleted_banks
+        }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Reset demo data failed: {str(e)}"
+        )

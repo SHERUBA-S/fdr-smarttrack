@@ -1,6 +1,9 @@
+import io
+import csv
 from datetime import date
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_roles, verify_institution_access
@@ -13,6 +16,10 @@ from app.services.fdr_service import get_fdr_list
 from app.services.verification_engine import VerificationEngine
 from app.services.anomaly_detector import AnomalyDetector
 from app.services.audit_service import log_audit_event
+from app.services.lifecycle_service import (
+    RiskRadarEngine, ConsistencyCheckerEngine, LifecycleChainEngine,
+    MaturityCalendarEngine, sanitize_csv_cell
+)
 
 router = APIRouter()
 
@@ -57,6 +64,104 @@ def list_fdrs(
         page_size=page_size,
         total_pages=total_pages
     )
+
+@router.get("/risk-radar")
+def get_risk_radar(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Explainable rule-based Risk Radar with deterministic priorities and human-readable reasoning."""
+    return RiskRadarEngine.get_radar_summary(db=db, user=current_user)
+
+@router.get("/consistency-checker")
+def get_consistency_checks(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Document & data consistency audit identifying date mismatches, missing fields, and unverified records."""
+    return ConsistencyCheckerEngine.run_checks(db=db, user=current_user)
+
+@router.get("/maturity-calendar")
+def get_maturity_calendar(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Maturity countdown timeline categorizing FDRs into 7, 15, 30 day reminder windows and overdue buckets."""
+    return MaturityCalendarEngine.get_calendar_buckets(db=db, user=current_user)
+
+@router.get("/lifecycle-chains")
+def get_lifecycle_chains(
+    limit: int = Query(25, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Traceable audit chains showing creation, uploads, checks, renewals, and release events."""
+    return LifecycleChainEngine.get_all_chains_summary(db=db, user=current_user, limit=limit)
+
+@router.get("/export-csv")
+def export_fdrs_csv(
+    status: Optional[FDRStatus] = None,
+    bank_name: Optional[str] = None,
+    has_discrepancy: Optional[bool] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Export FDR register records as a secure CSV (sanitized against formula injection)."""
+    items, total = get_fdr_list(
+        db=db,
+        user=current_user,
+        page=1,
+        page_size=5000,
+        status_filter=status,
+        bank_name=bank_name,
+        has_discrepancy=has_discrepancy
+    )
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "FDR ID", "FDR Reference Number", "Bank Name", "Branch",
+        "Principal Amount (INR)", "Interest Rate (%)", "Issue Date", "Maturity Date",
+        "Status", "Verification Status", "Discrepancy Flag", "Discrepancy Notes",
+        "Created Date"
+    ])
+
+    for f in items:
+        writer.writerow([
+            sanitize_csv_cell(f.id),
+            sanitize_csv_cell(f.fdr_number),
+            sanitize_csv_cell(f.bank_name),
+            sanitize_csv_cell(f.branch_name or "N/A"),
+            sanitize_csv_cell(f.principal_amount),
+            sanitize_csv_cell(f.interest_rate or "N/A"),
+            sanitize_csv_cell(f.issue_date),
+            sanitize_csv_cell(f.maturity_date),
+            sanitize_csv_cell(f.status.value),
+            sanitize_csv_cell(f.verification_status.value),
+            sanitize_csv_cell("YES" if f.has_discrepancy else "NO"),
+            sanitize_csv_cell(f.discrepancy_notes or ""),
+            sanitize_csv_cell(f.created_at.strftime("%Y-%m-%d %H:%M:%S") if f.created_at else "")
+        ])
+
+    csv_data = output.getvalue()
+    return Response(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=fdr_guardian_register.csv"}
+    )
+
+@router.get("/{fdr_id}/lifecycle-chain")
+def get_single_fdr_chain(
+    fdr_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve the full chronological chain of custody and events for a single FDR."""
+    fdr = db.query(FDRRecord).filter(FDRRecord.id == fdr_id).first()
+    if not fdr:
+        raise HTTPException(status_code=404, detail="FDR record not found")
+    verify_institution_access(current_user, fdr.institution_id)
+    return LifecycleChainEngine.get_fdr_chain(db=db, fdr_id=fdr_id)
 
 @router.get("/{fdr_id}", response_model=FDRResponse)
 def get_fdr_detail(

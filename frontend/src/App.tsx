@@ -15,6 +15,13 @@ import { InstitutionsPage } from './pages/InstitutionsPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
 import { DatasetManagementPage } from './pages/DatasetManagementPage';
 import { MFASetupPage } from './pages/MFASetupPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { UserManagementPage } from './pages/UserManagementPage';
+import { RiskRadarPage } from './pages/RiskRadarPage';
+import { ConsistencyCheckerPage } from './pages/ConsistencyCheckerPage';
+import { LifecycleChainPage } from './pages/LifecycleChainPage';
+import { MaturityCalendarPage } from './pages/MaturityCalendarPage';
+import { BottleneckMonitorPage } from './pages/BottleneckMonitorPage';
 import { UserRole } from './types';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode; allowedRoles?: UserRole[] }> = ({
@@ -48,6 +55,7 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
           <Route
             path="/"
@@ -62,6 +70,11 @@ export function App() {
             <Route path="fdrs/create" element={<FDRCreatePage />} />
             <Route path="fdrs/:id" element={<FDRDetailPage />} />
             <Route path="fdrs/:id/upload" element={<FDRUploadPage />} />
+            <Route path="risk-radar" element={<RiskRadarPage />} />
+            <Route path="consistency-checker" element={<ConsistencyCheckerPage />} />
+            <Route path="lifecycle-chain" element={<LifecycleChainPage />} />
+            <Route path="maturity-calendar" element={<MaturityCalendarPage />} />
+            <Route path="bottlenecks" element={<BottleneckMonitorPage />} />
             <Route
               path="review-queue"
               element={
@@ -73,6 +86,14 @@ export function App() {
             <Route path="renewals" element={<RenewalWorkflowPage />} />
             <Route path="releases" element={<ReleaseWorkflowPage />} />
             <Route path="institutions" element={<InstitutionsPage />} />
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+                  <UserManagementPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="audit-logs"
               element={

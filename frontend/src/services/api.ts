@@ -1,6 +1,8 @@
 import {
   User, FDRRecord, DashboardMetrics, NotificationItem,
-  Institution, Bank, AuditLogItem, ExtractedField
+  Institution, Bank, AuditLogItem, ExtractedField,
+  RiskRadarSummary, ConsistencyCheckResponse, MaturityCalendarResponse,
+  FDRLifecycleChain, BottleneckResponse
 } from '../types';
 
 const API_BASE = '/api/v1';
@@ -45,6 +47,13 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const api = {
   // Auth & MFA
+  async register(data: { full_name: string; email: string; password: string; role?: string; institution_id?: string }) {
+    return request<User>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
   async login(email: string, password: string) {
     return request<any>('/auth/login', {
       method: 'POST',
@@ -224,5 +233,60 @@ export const api = {
 
   async resetDemoData() {
     return request<any>('/datasets/reset-demo-data', { method: 'POST' });
+  },
+
+  // User Administration (Admin only)
+  async getUsers(skip = 0, limit = 100): Promise<User[]> {
+    return request<User[]>(`/users/?skip=${skip}&limit=${limit}`);
+  },
+
+  async updateUser(userId: string, data: Partial<User>): Promise<User> {
+    return request<User>(`/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+
+  // Innovations
+  async getRiskRadar(): Promise<RiskRadarSummary> {
+    return request<RiskRadarSummary>('/fdrs/risk-radar');
+  },
+
+  async getConsistencyChecks(): Promise<ConsistencyCheckResponse> {
+    return request<ConsistencyCheckResponse>('/fdrs/consistency-checker');
+  },
+
+  async getMaturityCalendar(): Promise<MaturityCalendarResponse> {
+    return request<MaturityCalendarResponse>('/fdrs/maturity-calendar');
+  },
+
+  async getLifecycleChains(limit = 25): Promise<FDRLifecycleChain[]> {
+    return request<FDRLifecycleChain[]>(`/fdrs/lifecycle-chains?limit=${limit}`);
+  },
+
+  async getFDRLifecycleChain(fdrId: string): Promise<FDRLifecycleChain> {
+    return request<FDRLifecycleChain>(`/fdrs/${fdrId}/lifecycle-chain`);
+  },
+
+  async getBottlenecks(): Promise<BottleneckResponse> {
+    return request<BottleneckResponse>('/workflows/bottlenecks');
+  },
+
+  async exportFDRsCSV(): Promise<void> {
+    const token = localStorage.getItem('access_token');
+    const response = await fetch('/api/v1/fdrs/export-csv', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+    if (!response.ok) throw new Error('Failed to download CSV export');
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `fdr_export_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
   }
 };
+

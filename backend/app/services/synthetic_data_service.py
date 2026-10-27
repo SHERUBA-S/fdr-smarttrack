@@ -65,6 +65,12 @@ def generate_synthetic_dataset(db: Session, mode: str = "DEMO", seed: int = 42) 
         n_notifications = 150
         n_audits = 300
 
+    # 0. Automatically purge any previous synthetic records to avoid unique code conflicts
+    db.query(FDRRecord).filter(FDRRecord.is_synthetic == True).delete(synchronize_session=False)
+    db.query(Institution).filter(Institution.is_synthetic == True).delete(synchronize_session=False)
+    db.query(Bank).filter(Bank.is_synthetic == True).delete(synchronize_session=False)
+    db.commit()
+
     job = DatasetGenerationJob(mode=mode, status="RUNNING")
     db.add(job)
     db.commit()
@@ -126,6 +132,9 @@ def generate_synthetic_dataset(db: Session, mode: str = "DEMO", seed: int = 42) 
             is_mfa_enabled=False
         )
         db.add(demo_inst_user)
+        db.commit()
+    elif demo_inst_user and saved_institutions:
+        demo_inst_user.institution_id = saved_institutions[0].id
         db.commit()
 
     # 4. FDR Records

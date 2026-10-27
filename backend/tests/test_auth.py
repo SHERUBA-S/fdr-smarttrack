@@ -34,18 +34,22 @@ def test_login_failure_invalid_credentials(client):
     assert res.status_code == 401
     assert "access_token" not in res.json()
 
+import uuid
+
 def test_totp_mfa_workflow(client):
     # Register a dedicated user for MFA testing to isolate from main admin user
-    test_email = "mfa_tester@smarttrack.gov.in"
+    unique_suffix = uuid.uuid4().hex[:8]
+    test_email = f"mfa_{unique_suffix}@smarttrack.gov.in"
     test_pass = "MfaTestPassword@123"
     
-    # Register if not exists
+    # Register if not exists (using permitted public registration role)
     reg_res = client.post("/api/v1/auth/register", json={
         "email": test_email,
         "full_name": "MFA Test Account",
         "password": test_pass,
-        "role": "SUPER_ADMIN"
+        "role": "REVIEWING_OFFICIAL"
     })
+    assert reg_res.status_code == 200
     
     # Login to obtain user token
     login_res = client.post("/api/v1/auth/login", json={
@@ -96,3 +100,14 @@ def test_totp_mfa_workflow(client):
     challenge_data = res_challenge.json()
     assert "access_token" in challenge_data
     assert challenge_data["requires_mfa"] is False
+
+
+def test_public_registration_cannot_grant_super_admin(client):
+    res = client.post("/api/v1/auth/register", json={
+        "email": "hacker_admin@example.com",
+        "full_name": "Rogue Admin Attempt",
+        "password": "Password123!@#",
+        "role": "SUPER_ADMIN"
+    })
+    assert res.status_code == 403
+    assert "Administrator accounts cannot be self-registered publicly" in res.json()["detail"]

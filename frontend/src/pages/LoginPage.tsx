@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, KeyRound, ArrowRight, Lock, Mail, AlertCircle, RefreshCw } from 'lucide-react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { ShieldCheck, KeyRound, ArrowRight, Lock, Mail, AlertCircle, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isRegisteredSuccess = searchParams.get('registered') === '1';
   const { login, mfaChallenge } = useAuth();
 
   const [email, setEmail] = useState('admin@smarttrack.gov.in');
@@ -71,15 +73,22 @@ export const LoginPage: React.FC = () => {
           <ShieldCheck className="w-8 h-8" />
         </div>
         <h2 className="text-2xl font-bold tracking-tight text-white">
-          FDR SmartTrack Portal
+          FDR Guardian Portal
         </h2>
         <p className="mt-1 text-xs text-slate-400">
-          Smart Security Deposit / Fixed Deposit Receipt Management (SIH26265)
+          Intelligent Security Deposit & FDR Lifecycle Management (SIH26265)
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-6 shadow-xl rounded-2xl sm:px-10 border border-slate-100">
+          {isRegisteredSuccess && (
+            <div className="mb-4 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Registration completed! Please sign in with your registered email and password.</span>
+            </div>
+          )}
+
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -191,8 +200,18 @@ export const LoginPage: React.FC = () => {
             </form>
           )}
 
+          {/* Registration Link */}
+          <div className="mt-4 pt-3 text-center border-t border-slate-100">
+            <p className="text-xs text-slate-600">
+              Need access?{' '}
+              <Link to="/register" className="text-blue-700 hover:text-blue-800 font-semibold hover:underline">
+                Create new FDR Officer or Reviewer account
+              </Link>
+            </p>
+          </div>
+
           {/* Quick Demo Credentials Switcher */}
-          <div className="mt-6 pt-5 border-t border-slate-200">
+          <div className="mt-5 pt-4 border-t border-slate-200">
             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
               Select Demo Persona (Click to autofill)
             </p>

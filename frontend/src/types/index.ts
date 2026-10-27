@@ -166,3 +166,127 @@ export interface AuditLogItem {
   ip_address?: string;
   created_at: string;
 }
+
+export interface RiskTriggeredRule {
+  rule_id: string;
+  severity: 'INFO' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  title: string;
+  explanation: string;
+  action: string;
+}
+
+export interface RiskRadarItem {
+  fdr_id: string;
+  fdr_number: string;
+  bank_name: string;
+  branch_name?: string;
+  principal_amount: number;
+  status: string;
+  maturity_date: string;
+  days_left: number;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  risk_score: number;
+  triggered_rules: RiskTriggeredRule[];
+  has_discrepancy: boolean;
+  doc_count: number;
+}
+
+export interface RiskRadarSummary {
+  total_evaluated: number;
+  high_count: number;
+  medium_count: number;
+  low_count: number;
+  discrepancy_count: number;
+  items: RiskRadarItem[];
+}
+
+export interface ConsistencyCheckItem {
+  id: string;
+  fdr_id: string;
+  fdr_number: string;
+  bank_name: string;
+  field: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  issue_type: string;
+  description: string;
+  recommended_action: string;
+}
+
+export interface ConsistencyCheckResponse {
+  disclaimer: string;
+  total_records_checked: number;
+  inconsistency_count: number;
+  items: ConsistencyCheckItem[];
+}
+
+export interface TimelineEvent {
+  stage: string;
+  title: string;
+  timestamp: string;
+  status: string;
+  actor: string;
+  details: string;
+}
+
+export interface FDRLifecycleChain {
+  fdr_id: string;
+  fdr_number: string;
+  bank_name: string;
+  principal_amount: number;
+  current_status: string;
+  issue_date: string;
+  maturity_date: string;
+  timeline_events: TimelineEvent[];
+}
+
+export interface MaturityBucketItem {
+  id: string;
+  fdr_number: string;
+  bank_name: string;
+  principal_amount: number;
+  status: string;
+  maturity_date: string;
+  days_left: number;
+  has_discrepancy: boolean;
+}
+
+export interface MaturityCalendarResponse {
+  as_of_date: string;
+  summary: {
+    total_records: number;
+    expired_count: number;
+    within_7_days_count: number;
+    within_15_days_count: number;
+    within_30_days_count: number;
+    future_count: number;
+  };
+  buckets: {
+    expired: MaturityBucketItem[];
+    within_7_days: MaturityBucketItem[];
+    within_15_days: MaturityBucketItem[];
+    within_30_days: MaturityBucketItem[];
+    future: MaturityBucketItem[];
+  };
+}
+
+export interface BottleneckItem {
+  id: string;
+  fdr_id?: string;
+  fdr_number: string;
+  bank_name: string;
+  type: string;
+  status: string;
+  pending_days: number;
+  responsible_role: string;
+  action_required: string;
+}
+
+export interface BottleneckResponse {
+  total_stalled_items: number;
+  verification_queue_pending: number;
+  renewal_requests_pending: number;
+  release_requests_pending: number;
+  critical_breaches_count: number;
+  items: BottleneckItem[];
+}
+

@@ -118,3 +118,13 @@ def get_review_queue(
         })
 
     return {"total": len(items), "items": items}
+
+@router.get("/bottlenecks")
+def get_bottlenecks(
+    current_user: User = Depends(require_roles([UserRole.SUPER_ADMIN, UserRole.REVIEWING_OFFICIAL])),
+    db: Session = Depends(get_db)
+):
+    """Retrieve queue bottlenecks, queue ages, and SLA threshold violations."""
+    from app.services.lifecycle_service import BottleneckMonitorEngine
+    return BottleneckMonitorEngine.get_bottlenecks(db)
+

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Search, Filter, Plus, FileText, Upload, AlertTriangle,
-  ChevronLeft, ChevronRight, RefreshCw, ArrowUpDown
+  ChevronLeft, ChevronRight, RefreshCw, ArrowUpDown, Download
 } from 'lucide-react';
 import { api } from '../services/api';
 import { FDRRecord, FDRStatus } from '../types';
@@ -19,6 +19,7 @@ export const FDRListPage: React.FC = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   // Filter States
   const [search, setSearch] = useState('');
@@ -70,9 +71,20 @@ export const FDRListPage: React.FC = () => {
     }
   };
 
+  const handleExportCSV = async () => {
+    try {
+      setExporting(true);
+      await api.exportFDRsCSV();
+    } catch (err: any) {
+      alert(`Export failed: ${err.message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-5">
-      {/* Page Title & Add Button */}
+      {/* Page Title & Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-slate-900">Fixed Deposit Receipts (FDR)</h1>
@@ -81,6 +93,15 @@ export const FDRListPage: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportCSV}
+            disabled={exporting}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50"
+            title="Download safe CSV with injection protection"
+          >
+            <Download className="w-4 h-4 text-slate-500" />
+            {exporting ? 'Exporting...' : 'Export CSV'}
+          </button>
           <Link
             to="/fdrs/create"
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"

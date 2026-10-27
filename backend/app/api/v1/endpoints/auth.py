@@ -238,11 +238,19 @@ def register(reg_data: RegisterRequest, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    # Security: Public registration must never grant Admin privileges
+    assigned_role = reg_data.role
+    if assigned_role == UserRole.SUPER_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator accounts cannot be self-registered publicly. Please choose FDR Officer or Reviewer."
+        )
+
     user = User(
         email=reg_data.email.lower().strip(),
         full_name=reg_data.full_name,
         hashed_password=hash_password(reg_data.password),
-        role=reg_data.role,
+        role=assigned_role,
         institution_id=reg_data.institution_id,
         is_active=True,
         is_mfa_enabled=False

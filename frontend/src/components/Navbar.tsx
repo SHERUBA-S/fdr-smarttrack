@@ -37,7 +37,7 @@ export const Navbar: React.FC = () => {
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <span className="font-bold text-slate-900 tracking-tight text-base">FDR SmartTrack</span>
+              <span className="font-bold text-slate-900 tracking-tight text-base">FDR Guardian</span>
               <span className="text-[10px] text-blue-600 bg-blue-50 font-semibold px-2 py-0.5 rounded-full ml-2 border border-blue-200">
                 SIH26265
               </span>
