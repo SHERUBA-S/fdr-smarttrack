@@ -14,6 +14,7 @@ from app.core.mfa import (
 )
 from app.core.deps import get_current_user
 from app.models.user import User, RefreshToken, MFAConfiguration, MFARecoveryCode
+from app.models.institution import Institution
 from app.models.enums import UserRole
 from app.schemas.auth import (
     LoginRequest, TokenResponse, RefreshTokenRequest,
@@ -233,10 +234,23 @@ def mfa_verify_enrollment(
 
 @router.post("/register", response_model=UserResponse)
 def register(reg_data: RegisterRequest, db: Session = Depends(get_db)):
-    """User registration with role and email validation."""
-    existing = db.query(User).filter(User.email == reg_data.email.lower().strip()).first()
+    """User registration with role, email, password, and institution validation."""
+    clean_email = reg_data.email.lower().strip()
+    clean_name = reg_data.full_name.strip()
+    
+    if not clean_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Full name cannot be blank."
+        )
+
+    # Check for duplicate email
+    existing = db.query(User).filter(User.email == clean_email).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="An account with this email address already exists. Please sign in instead."
+        )
 
     # Security: Public registration must never grant Admin privileges
     assigned_role = reg_data.role
@@ -246,12 +260,25 @@ def register(reg_data: RegisterRequest, db: Session = Depends(get_db)):
             detail="Administrator accounts cannot be self-registered publicly. Please choose FDR Officer or Reviewer."
         )
 
+    # Validate and sanitize institution_id (prevent ForeignKeyViolation 500 errors)
+    institution_id = None
+    if assigned_role == UserRole.INSTITUTION_USER and reg_data.institution_id:
+        inst_id_clean = reg_data.institution_id.strip()
+        if inst_id_clean:
+            inst = db.query(Institution).filter(Institution.id == inst_id_clean).first()
+            if not inst:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Selected institution does not exist. Please choose a valid institution."
+                )
+            institution_id = inst.id
+
     user = User(
-        email=reg_data.email.lower().strip(),
-        full_name=reg_data.full_name,
+        email=clean_email,
+        full_name=clean_name,
         hashed_password=hash_password(reg_data.password),
         role=assigned_role,
-        institution_id=reg_data.institution_id,
+        institution_id=institution_id,
         is_active=True,
         is_mfa_enabled=False
     )
@@ -264,7 +291,8 @@ def register(reg_data: RegisterRequest, db: Session = Depends(get_db)):
         action="USER_REGISTERED",
         entity_type="USER",
         entity_id=user.id,
-        actor=user
+        actor=user,
+        details=f"Self-registered account with role {assigned_role.value}"
     )
 
     return user

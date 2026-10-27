@@ -24,8 +24,12 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers
   });
 
-  if (response.status === 401 && !endpoint.includes('/auth/login')) {
-    // Session expired
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  const isAuthPage = pathname === '/login' || pathname === '/register';
+  const isPublicAuthEndpoint = endpoint.startsWith('/auth/') || endpoint === '/institutions/public';
+
+  if (response.status === 401 && !isPublicAuthEndpoint && !isAuthPage) {
+    // Session expired on authenticated pages
     localStorage.removeItem('access_token');
     localStorage.removeItem('user');
     window.location.href = '/login?expired=1';
@@ -35,7 +39,15 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     let errorDetail = 'Request failed';
     try {
       const errData = await response.json();
-      errorDetail = errData.detail || errData.message || JSON.stringify(errData);
+      if (Array.isArray(errData.detail)) {
+        errorDetail = errData.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
+      } else if (typeof errData.detail === 'string') {
+        errorDetail = errData.detail;
+      } else if (errData.detail) {
+        errorDetail = JSON.stringify(errData.detail);
+      } else {
+        errorDetail = errData.message || response.statusText;
+      }
     } catch {
       errorDetail = response.statusText;
     }
@@ -194,6 +206,10 @@ export const api = {
   async getInstitutions(search?: string): Promise<Institution[]> {
     const q = search ? `?search=${encodeURIComponent(search)}` : '';
     return request<Institution[]>(`/institutions/${q}`);
+  },
+
+  async getPublicInstitutions(): Promise<Institution[]> {
+    return request<Institution[]>('/institutions/public');
   },
 
   async getBanks(search?: string): Promise<Bank[]> {

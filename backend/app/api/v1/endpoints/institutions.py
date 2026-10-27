@@ -33,6 +33,11 @@ def list_institutions(
         
     return query.offset(skip).limit(limit).all()
 
+@router.get("/public", response_model=List[InstitutionResponse])
+def list_public_institutions(db: Session = Depends(get_db)):
+    """Public active institutions list for registration dropdown."""
+    return db.query(Institution).filter(Institution.is_active == True).order_by(Institution.name).all()
+
 @router.get("/{institution_id}", response_model=InstitutionResponse)
 def get_institution(
     institution_id: str,

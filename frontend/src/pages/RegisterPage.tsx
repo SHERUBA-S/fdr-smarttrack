@@ -22,13 +22,13 @@ export const RegisterPage: React.FC = () => {
   useEffect(() => {
     const loadInstitutions = async () => {
       try {
-        const instList = await api.getInstitutions();
+        const instList = await api.getPublicInstitutions();
         setInstitutions(instList);
         if (instList.length > 0) {
           setInstitutionId(instList[0].id);
         }
-      } catch {
-        // Fallback gracefully
+      } catch (err) {
+        console.warn('Could not load public institutions:', err);
       }
     };
     loadInstitutions();
@@ -50,18 +50,19 @@ export const RegisterPage: React.FC = () => {
 
     setLoading(true);
     try {
+      const cleanInstId = institutionId ? institutionId.trim() : '';
       await api.register({
         full_name: fullName.trim(),
         email: email.trim().toLowerCase(),
         password,
         role: role as UserRole,
-        institution_id: role === 'INSTITUTION_USER' ? institutionId : undefined
+        institution_id: (role === 'INSTITUTION_USER' && cleanInstId) ? cleanInstId : undefined
       });
 
       setSuccess(true);
       setTimeout(() => {
         navigate('/login?registered=1');
-      }, 2000);
+      }, 1800);
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please verify your details.');
     } finally {
@@ -182,6 +183,7 @@ export const RegisterPage: React.FC = () => {
                     onChange={(e) => setInstitutionId(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:outline-hidden bg-white"
                   >
+                    <option value="">-- Select Institution (Optional) --</option>
                     {institutions.map((i) => (
                       <option key={i.id} value={i.id}>
                         {i.name} ({i.code})
